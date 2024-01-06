@@ -2,3 +2,5 @@
 Makefile
 SDL2.dll
 main.exe
+compile_commands.json
+.cache

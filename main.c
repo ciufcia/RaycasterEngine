@@ -1,195 +1,451 @@
+#include <float.h>
 #include <stdio.h>
-#include <stdbool.h>
+#include <math.h>
+#include <stdint.h>
 #include <SDL2/SDL.h>
 
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
-#define WINDOW_BUFFER_SIZE 307200
-const int WINDOW_FLAGS = 0;
-const int RENDERER_FLAGS = SDL_RENDERER_ACCELERATED;
+typedef uint8_t  u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef int8_t   i8;
+typedef int16_t  i16;
+typedef int32_t  i32;
+typedef int64_t  i64;
+
+typedef float    f32;
+typedef double   f64;
+
+//////////////////////////////////
+
+#define WINDOW_WIDTH       320u
+#define WINDOW_HEIGHT      200u
+#define WINDOW_BUFFER_SIZE 64000u
+#define WINDOW_FLAGS       0u
+#define RENDERER_FLAGS     SDL_RENDERER_ACCELERATED
+
+//////////////////////////////////
+
+#define RGBA_BLACK 0x000000FF
+#define RGBA_WHITE 0xFFFFFFFF
+#define RGBA_GRAY  0x808080FF
+
+//////////////////////////////////
 
 typedef struct {
-    SDL_Window *pWindow;
-    SDL_Renderer *pRenderer;
-} App;
+    SDL_Window *p_sdlWindow;
+    SDL_Renderer *p_renderer;
 
-typedef struct {
-    bool quit;
-} Events;
+    SDL_Texture *p_windowTexture;
+    u32 windowPixelBuffer[WINDOW_BUFFER_SIZE];
+} Window;
 
-typedef struct {
-    unsigned long lastTick;
-    unsigned long deltaTime;
+typedef struct GameInstance_ GameInstance;
+
+u8 init_window(Window *p_window);
+
+void render(Window *p_window, GameInstance *p_gameInstance);
+void render_walls(Window *p_window, GameInstance *p_gameInstance);
+void render_top_down_view(Window *p_window, GameInstance *p_gameInstance);
+
+//////////////////////////////////
+
+typedef struct{
+    u64 lastTick;
+    u64 deltaTime;
 } Clock;
 
-Clock clock = {0, 0};
+Clock g_clock = { 0u, 0u };
 
-void tickClock() {
-    unsigned long timeBetweenTicks = SDL_GetTicks64();
-    clock.deltaTime = timeBetweenTicks - clock.lastTick;
-    clock.lastTick = timeBetweenTicks;
-}
+void update_clock();
 
-#define CREATE_CLEARED_EVENTS(name) Events name = {false}; 
+//////////////////////////////////
 
-typedef struct { int x; int y; } Vec2i;
-typedef struct { unsigned int x; unsigned int y; } Vec2u;
-typedef struct { float x; float y; } Vec2f;
+typedef struct { f32 x; f32 y; } Vec2f32;
+void rotate(Vec2f32 *vec, f32 angle);
 
-typedef struct { Vec2f playerPos; } GameLogicData;
+typedef struct { u32 x; u32 y; } Vec2u32;
 
-const unsigned short WORLD_WIDTH = 7;
-const unsigned short WORLD_HEIGHT = 7;
-const unsigned char WORLD[] = {
-    1, 1, 1, 1, 1, 1, 1,
-    1, 0, 0, 0, 0, 0, 1,
-    1, 0, 1, 0, 1, 0, 1,
-    1, 0, 0, 0, 0, 0, 1,
-    1, 0, 1, 0, 1, 0, 1,
-    1, 0, 0, 0, 0, 0, 1,
-    1, 1, 1, 1, 1, 1, 1
+//////////////////////////////////
+
+#define WORLD_WIDTH 15u
+#define WORLD_HEIGHT 15u
+#define WORLD_SIZE 225u
+
+const u8 g_WORLD[WORLD_SIZE] = {
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,1,0,1,0,1,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,1,1,0,1,
+    1,0,1,0,0,0,0,0,0,0,0,1,1,0,1,
+    1,0,1,1,1,1,0,0,0,0,0,0,0,0,1,
+    1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 };
 
-const unsigned short WORLD_VIEW_BLOCK_SIZE = WINDOW_HEIGHT / WORLD_HEIGHT * 0.3;
-const unsigned short WORLD_VIEW_PLAYER_SIZE = WORLD_VIEW_BLOCK_SIZE * 0.3;
-const unsigned short WORLD_VIEW_HALF_PLAYER_SIZE = WORLD_VIEW_PLAYER_SIZE / 2.f;
+//////////////////////////////////
 
-void initApp(App *pApp) {
+typedef struct {
+    Vec2f32 position;
+    f32 movementSpeed;
+    Vec2f32 direction;
+    f32 rotationSpeed;
+    Vec2f32 cameraPlane;
+} Player;
+
+//////////////////////////////////
+
+struct GameInstance_ {
+    Player player;
+};
+
+//////////////////////////////////
+
+int main(int argc, char *argv[]);
+
+//////////////////////////////////
+
+void setup(Window *p_window, GameInstance *p_gameInstance);
+
+//////////////////////////////////
+
+void game_logic(Window *p_window, GameInstance *p_gameInstance);
+
+//////////////////////////////////
+
+void player_logic(Window *p_window, GameInstance *p_gameInstance);
+
+//////////////////////////////////
+
+void main_loop(Window *p_window, GameInstance *p_gameInstance);
+
+//////////////////////////////////
+
+void handleSDLEvents(Window *p_window);
+
+//////////////////////////////////
+
+u8 init_window(Window *p_window) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("Couldn't initialize SDL: %s\n", SDL_GetError());
-		exit(1);
+        return 0u;
     }
 
-    pApp->pWindow = SDL_CreateWindow("RaycasterEngine", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_FLAGS);
+    p_window->p_sdlWindow = SDL_CreateWindow(
+        "RaycasterEngine v.0.1",
+        SDL_WINDOWPOS_UNDEFINED, 
+        SDL_WINDOWPOS_UNDEFINED, 
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        WINDOW_FLAGS
+    );
 
-    if (!pApp->pWindow) {
-        printf("Failed to open %d x %d window: %s\n", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_GetError());
-		exit(1);
+    if (!p_window->p_sdlWindow) {
+        return 0u;
     }
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
-    pApp->pRenderer = SDL_CreateRenderer(pApp->pWindow, -1, RENDERER_FLAGS);
+    p_window->p_renderer = SDL_CreateRenderer(p_window->p_sdlWindow, -1, RENDERER_FLAGS);
 
-    if (!pApp->pRenderer) {
-		printf("Failed to create renderer: %s\n", SDL_GetError());
-		exit(1);
-	}
-}
-
-void handleSDLEvents(Events *events) {
-    SDL_Event event;
-
-    while (SDL_PollEvent(&event)) {
-        switch (event.type) {
-            case SDL_QUIT:
-                events->quit = true;
-                return;
-            default:
-                break;
-        }
+    if (!p_window->p_sdlWindow) {
+        return 0u;
     }
-}
-
-void renderWorldView(App *pApp, GameLogicData *pGameLogicData) {
-    SDL_Rect rect;
     
-    for (short x = 0; x < WORLD_WIDTH; x++) {
-        for (short y = 0; y < WORLD_HEIGHT; y++) {
-            if (WORLD[x + y * WORLD_WIDTH] == 0) {
-                continue;
-            }
-
-            rect.x = x * WORLD_VIEW_BLOCK_SIZE;
-            rect.y = y * WORLD_VIEW_BLOCK_SIZE;
-            rect.w = WORLD_VIEW_BLOCK_SIZE;
-            rect.h = WORLD_VIEW_BLOCK_SIZE;
-
-            SDL_SetRenderDrawColor(pApp->pRenderer, 255, 255, 255, 255);
-            SDL_RenderFillRect(pApp->pRenderer, &rect);
-        }
-    }
-
-    SDL_Rect playerRect = {
-        pGameLogicData->playerPos.x - WORLD_VIEW_HALF_PLAYER_SIZE,
-        pGameLogicData->playerPos.y - WORLD_VIEW_HALF_PLAYER_SIZE,
-        WORLD_VIEW_PLAYER_SIZE,
-        WORLD_VIEW_PLAYER_SIZE
-    };
-
-    SDL_SetRenderDrawColor(pApp->pRenderer, 0, 255, 255, 255);
-    SDL_RenderFillRect(pApp->pRenderer, &playerRect);
-}
-
-void updatePlayer(GameLogicData *pGameLogicData) {
-    const Uint8 *keyStates = SDL_GetKeyboardState(NULL);
-    if (keyStates[SDL_SCANCODE_W]) {
-        pGameLogicData->playerPos.y -= 0.05f * clock.deltaTime;
-    }
-    if (keyStates[SDL_SCANCODE_S]) {
-        pGameLogicData->playerPos.y += 0.05f * clock.deltaTime;
-    }
-    if (keyStates[SDL_SCANCODE_A] == 1) {
-        pGameLogicData->playerPos.x -= 0.05f * clock.deltaTime;
-    }
-    if (keyStates[SDL_SCANCODE_D]) {
-        pGameLogicData->playerPos.x += 0.05f * clock.deltaTime;
-    }
-}
-
-void runGameLogic(App *pApp, GameLogicData *pGameLogicData) {
-    updatePlayer(pGameLogicData);
-}
-
-void runMainLoop(App *pApp) {
-    bool bRunning = true;
-
-    SDL_Texture *pWindowTexture = SDL_CreateTexture(
-        pApp->pRenderer,
+    p_window->p_windowTexture = SDL_CreateTexture(
+        p_window->p_renderer,
         SDL_PIXELFORMAT_RGBA8888,
         SDL_TEXTUREACCESS_STREAMING,
         WINDOW_WIDTH,
         WINDOW_HEIGHT
     );
 
-    GameLogicData gameLogicData = {
-        {
-            (float)(WORLD_WIDTH * WORLD_VIEW_BLOCK_SIZE) / 2.f,
-            (float)(WORLD_HEIGHT * WORLD_VIEW_BLOCK_SIZE) / 2.f
+    for (u32 _ = 0u; _ < WINDOW_BUFFER_SIZE; _++) {
+        p_window->windowPixelBuffer[_] = RGBA_WHITE;
+    }
+
+    return 1u;
+}
+
+//////////////////////////////////
+
+void update_clock() {
+    u64 timePassed = SDL_GetTicks64();
+    g_clock.deltaTime = timePassed - g_clock.lastTick;
+    g_clock.lastTick = timePassed;
+}
+
+//////////////////////////////////
+
+void rotate(Vec2f32 *p_vec, f32 angle) {
+   Vec2f32 oldVec = { p_vec->x, p_vec->y };
+   p_vec->x = oldVec.x * cos(angle) - oldVec.y * sin(angle);
+   p_vec->y = oldVec.x * sin(angle) + oldVec.y * cos(angle);
+}
+
+//////////////////////////////////
+
+void handleSDLEvents(Window *p_window) {
+    SDL_Event event;
+
+    while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_QUIT:
+                exit(0);
+                break;
+            default:
+                break;
         }
-    };
-
-    unsigned int pixels[WINDOW_BUFFER_SIZE] = {0};
-
-    while (bRunning) {
-        CREATE_CLEARED_EVENTS(events);
-
-        handleSDLEvents(&events);
-
-        if (events.quit) {
-            bRunning = false;
-            break;
-        }
-
-        runGameLogic(pApp, &gameLogicData);
-
-        SDL_RenderClear(pApp->pRenderer);
-
-        SDL_UpdateTexture(pWindowTexture, NULL, pixels, WINDOW_WIDTH * sizeof(unsigned int));
-        SDL_RenderCopy(pApp->pRenderer, pWindowTexture, NULL, NULL);
-        renderWorldView(pApp, &gameLogicData);
-        SDL_RenderPresent(pApp->pRenderer);
-
-        tickClock();
     }
 }
 
+//////////////////////////////////
+
+void render(Window *p_window, GameInstance *p_gameInstance) {
+    SDL_RenderClear(p_window->p_renderer);
+
+    render_walls(p_window, p_gameInstance);
+
+    SDL_UpdateTexture(
+        p_window->p_windowTexture,
+        NULL,
+        p_window->windowPixelBuffer,
+        WINDOW_WIDTH * sizeof(u32)
+    );
+
+    SDL_RenderCopy(p_window->p_renderer, p_window->p_windowTexture, NULL, NULL);
+    
+    render_top_down_view(p_window, p_gameInstance);
+
+    SDL_RenderPresent(p_window->p_renderer);
+
+    for (u32 _ = 0u; _ < WINDOW_BUFFER_SIZE; _++) {
+        p_window->windowPixelBuffer[_] = RGBA_WHITE;
+    }
+}
+
+//////////////////////////////////
+
+void render_walls(Window *p_window, GameInstance *p_gameInstance) {
+    const Vec2f32 playerPosition = p_gameInstance->player.position;
+    const Vec2f32 playerDirection = p_gameInstance->player.direction; 
+    const Vec2f32 cameraPlane = p_gameInstance->player.cameraPlane;
+
+    for (u16 windowRow = 0u; windowRow < WINDOW_WIDTH; windowRow++) {
+        // this is in range -1 to 1, where 0 is right in front of the player
+        f32 rayPositionOnCameraPlane = 2.f * ((float)(windowRow)/(float)(WINDOW_WIDTH)) - 1.f;  
+        Vec2f32 currentRayDirection = {
+            playerDirection.x + cameraPlane.x * rayPositionOnCameraPlane,
+            playerDirection.y + cameraPlane.y * rayPositionOnCameraPlane
+        };
+
+        Vec2f32 deltaDistance;
+        (currentRayDirection.x == 0.f) ? (deltaDistance.x = FLT_MAX) : (deltaDistance.x = fabs(1 / currentRayDirection.x));
+        (currentRayDirection.y == 0.f) ? (deltaDistance.y = FLT_MAX) : (deltaDistance.y = fabs(1 / currentRayDirection.y));
+
+        Vec2u32 worldCoordinates = { (u32)(playerPosition.x), (u32)(playerPosition.y) };
+
+        Vec2f32 travelledDistance;
+        i8 stepX; i8 stepY;
+
+        if (currentRayDirection.x > 0.f) {
+            travelledDistance.x = ((float)(worldCoordinates.x + 1u) - playerPosition.x) * deltaDistance.x;
+            stepX = 1;
+        } else {
+            travelledDistance.x = (playerPosition.x - (float)(worldCoordinates.x)) * deltaDistance.x;
+            stepX = -1;
+        }
+
+        if (currentRayDirection.y > 0.f) {
+            travelledDistance.y = ((float)(worldCoordinates.y + 1u) - playerPosition.y) * deltaDistance.y;
+            stepY = 1;
+        } else {
+            travelledDistance.y = (playerPosition.y - (float)(worldCoordinates.y)) * deltaDistance.y;
+            stepY = -1;
+        }
+
+        u8 face = 0u; // 0: vertical wall face
+                      // 1: horizontal wall face
+
+        u8 hit = 0u;
+        while (hit == 0u) {
+            if (travelledDistance.x < travelledDistance.y) {
+                travelledDistance.x += deltaDistance.x;
+                worldCoordinates.x += stepX;
+                face = 0u;
+            } else {
+                travelledDistance.y += deltaDistance.y;
+                worldCoordinates.y += stepY;
+                face = 1u;
+            }
+
+            if (g_WORLD[worldCoordinates.x + worldCoordinates.y * WORLD_WIDTH]) {
+                hit = 1u;
+            }
+        }
+
+        f32 perpendicularDistanceToWall;
+
+        (face == 0u) ? (perpendicularDistanceToWall = travelledDistance.x - deltaDistance.x)
+                     : (perpendicularDistanceToWall = travelledDistance.y - deltaDistance.y);
+
+        u32 wallLineHeight = (float)WINDOW_HEIGHT / perpendicularDistanceToWall;
+
+        i32 lineTop = WINDOW_HEIGHT / 2u - wallLineHeight / 2u;
+        if (lineTop < 0) { lineTop = 0; }
+        i32 lineBottom = WINDOW_HEIGHT / 2u + wallLineHeight / 2u;
+        if (lineBottom >= WINDOW_HEIGHT) { lineBottom = WINDOW_HEIGHT - 1; }
+
+        u32 color;
+        if (face == 0) {
+            color = RGBA_BLACK;
+        } else {
+            color = RGBA_GRAY;
+        }
+
+        for (u32 y = lineTop; y <= lineBottom; y++) {
+            p_window->windowPixelBuffer[windowRow + y * WINDOW_WIDTH] = color;
+        }
+    }   
+}
+
+//////////////////////////////////
+
+void render_top_down_view(Window *p_window, GameInstance *p_gameInstance) {
+    f32 wallBlockSize = ((float)WINDOW_HEIGHT / (float)WORLD_HEIGHT) * 0.5f;
+    u32 roundedBlockSize = round(wallBlockSize);
+
+   Vec2f32 playerPosition; 
+   playerPosition.x = p_gameInstance->player.position.x * wallBlockSize;
+   playerPosition.y = p_gameInstance->player.position.y * wallBlockSize;
+
+   Vec2f32 playerDirection = p_gameInstance->player.direction;
+
+   for (u32 y = 0u; y < WORLD_HEIGHT; y++) {
+       for (u32 x = 0u; x < WORLD_WIDTH; x++) {
+           if (g_WORLD[x + y * WORLD_WIDTH] == 0u) {
+               continue;
+           }
+
+           SDL_Rect wallBlock = {
+               x * roundedBlockSize,
+               y * roundedBlockSize,
+               roundedBlockSize,
+               roundedBlockSize
+           };
+
+           SDL_SetRenderDrawColor(p_window->p_renderer, 0u, 0u, 0u, 255u);
+           SDL_RenderFillRect(p_window->p_renderer, &wallBlock);
+       }
+   }
+
+   SDL_SetRenderDrawColor(p_window->p_renderer, 255u, 0u, 0u, 255u);
+   SDL_RenderDrawLine(
+       p_window->p_renderer,
+       round(playerPosition.x),
+       round(playerPosition.y),
+       round(playerPosition.x + playerDirection.x * roundedBlockSize),
+       round(playerPosition.y + playerDirection.y * roundedBlockSize)
+       );
+
+ SDL_SetRenderDrawColor(p_window->p_renderer, 0u, 0u, 255u, 255u);
+   SDL_RenderDrawLine(
+       p_window->p_renderer,
+       round(playerPosition.x),
+       round(playerPosition.y),
+       round(playerPosition.x + p_gameInstance->player.cameraPlane.x * roundedBlockSize),
+       round(playerPosition.y + p_gameInstance->player.cameraPlane.y * roundedBlockSize)
+       );
+
+   SDL_Rect playerRect = {
+       round(playerPosition.x - roundedBlockSize * 0.25f),
+       round(playerPosition.y - roundedBlockSize * 0.25f),
+       round(roundedBlockSize * 0.5f),
+       round(roundedBlockSize * 0.5f)
+   };
+
+   SDL_SetRenderDrawColor(p_window->p_renderer, 0u, 255u, 0u, 255u);
+   SDL_RenderFillRect(p_window->p_renderer, &playerRect);
+}
+
+//////////////////////////////////
+
+void setup(Window *p_window, GameInstance *p_gameInstance) {
+   init_window(p_window);
+
+   p_gameInstance->player.position.x = (float)WORLD_WIDTH * 0.5f;
+   p_gameInstance->player.position.y = (float)WORLD_HEIGHT * 0.5f;
+   p_gameInstance->player.movementSpeed = 0.005f;
+   p_gameInstance->player.direction.x = 0.f;
+   p_gameInstance->player.direction.y = -1.f;
+   p_gameInstance->player.rotationSpeed = 0.005f;
+    p_gameInstance->player.cameraPlane.x = 0.7f;
+    p_gameInstance->player.cameraPlane.y = 0.f;
+}
+
+//////////////////////////////////
+
+void game_logic(Window *p_window, GameInstance *p_gameInstance) {
+   player_logic(p_window, p_gameInstance);
+}
+
+//////////////////////////////////
+
+void player_logic(Window *p_window, GameInstance *p_gameInstance) {
+   const Uint8 *keyStates = SDL_GetKeyboardState(NULL);
+   f32 movementSpeed = p_gameInstance->player.movementSpeed;
+   f32 rotationSpeed = p_gameInstance->player.rotationSpeed;
+   if (keyStates[SDL_SCANCODE_W]) {
+        p_gameInstance->player.position.x +=
+            p_gameInstance->player.direction.x * movementSpeed * g_clock.deltaTime;
+        p_gameInstance->player.position.y +=
+            p_gameInstance->player.direction.y * movementSpeed * g_clock.deltaTime;
+   }
+   if (keyStates[SDL_SCANCODE_S]) {
+         p_gameInstance->player.position.x -=
+            p_gameInstance->player.direction.x * movementSpeed * g_clock.deltaTime;
+        p_gameInstance->player.position.y -=
+            p_gameInstance->player.direction.y * movementSpeed * g_clock.deltaTime;
+   }
+   f32 rotationAngle = rotationSpeed * g_clock.deltaTime;
+   if (keyStates[SDL_SCANCODE_D]) {
+        rotate(&(p_gameInstance->player.direction), rotationAngle);
+        rotate(&(p_gameInstance->player.cameraPlane), rotationAngle);
+   }
+   if (keyStates[SDL_SCANCODE_A]) {
+       rotate(&(p_gameInstance->player.direction), -rotationAngle);
+       rotate(&(p_gameInstance->player.cameraPlane), -rotationAngle);
+   }
+}
+
+//////////////////////////////////
+void main_loop(Window *p_window, GameInstance *p_gameInstance) {
+    while (1) {
+        handleSDLEvents(p_window);
+    
+        game_logic(p_window, p_gameInstance);
+
+        render(p_window, p_gameInstance);
+
+        update_clock();
+    } 
+}
+
+//////////////////////////////////
+
 int main(int argc, char *argv[]) {
-    App app;
-
-    initApp(&app);
-
-    runMainLoop(&app);
+    Window window;
+    GameInstance gameInstance;
+    
+    setup(&window, &gameInstance);
+    main_loop(&window, &gameInstance);
 
     return 0;
 }
